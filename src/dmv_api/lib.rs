@@ -1,3 +1,3 @@
-mod utils;
+mod client;
 mod structs;
-pub mod client;
+mod utils;

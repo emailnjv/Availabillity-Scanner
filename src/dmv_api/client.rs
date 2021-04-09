@@ -1,55 +1,86 @@
 use super::utils::Utils;
-use reqwest::{Response, get, Url};
+use reqwest::Url;
 use std::collections::HashMap;
+
+// TODO: Add traits & impl. to enums to allow for a standardized function that returns the necessary query pairs
+enum DmvEndpoints {
+	GetNextAvailableDate,
+	NavigateToDateTime,
+}
 
 struct Client {
 	utils: Utils,
-	url: Url
-}
-
-// TODO: Add traits & impl. to enums to allow for a standardized function that returns the necessary query pairs
-#[derive(strum_macros::Display)]
-enum DmvEndpoints {
-	GetNextAvailableDate,
-	NavigateToDateTime
 }
 
 impl Client {
 	pub fn new() -> Self {
 		Client {
 			utils: Utils::new(),
-			url: Url::parse("https://telegov.njportal.com/njmvc/CustomerCreateAppointments").unwrap()
 		}
 	}
 
-	async fn get(endpoint: &str) -> Result<Response, E> {
+	#[inline]
+	pub fn url(&self) -> &'static str {
+		"https://telegov.njportal.com/njmvc/CustomerCreateAppointments/"
+	}
+	async fn get_request(&self, endpoint: &str) -> reqwest::Result<HashMap<String, String>> {
 		let resp = reqwest::get(endpoint)
-				.await?
-				.json::<HashMap<String, String>>()
-				.await?;
+			.await?
+			.json::<HashMap<String, String>>()
+			.await;
+		resp
 	}
-
-	fn build_endpoint(&self, endpoint: DmvEndpoints, location_id: &str) -> &str {
+	fn build_endpoint(&self, endpoint: DmvEndpoints, location_id: &str) -> String {
 		// TODO: handle next endpoint given it's not a standard endpoint
-		// https://telegov.njportal.com/njmvc/CustomerCreateAppointments/GetNextAvailableDate?appointmentTypeId=15&locationId=186
-		self.url.join(endpoint.into()).unwrap()
-				.query_pairs_mut()
-				.append_pair("appointmentTypeId", "15")
-				.append_pair("locationId", location_id);
+		match endpoint {
+			DmvEndpoints::GetNextAvailableDate => {
+				let mut result = Url::parse(self.url())
+					.unwrap()
+					.join("GetNextAvailableDate")
+					.unwrap();
+				result
+					.query_pairs_mut()
+					.append_pair("appointmentTypeId", "15")
+					.append_pair("locationId", location_id);
+				result.as_str().to_string()
+			}
+			_ => self.url().to_string(),
+		}
 	}
-
-	async fn get_next_available_appointment(&self, location_id: &str) -> HashMap<String, String> {
-		get()
+	async fn get_next_available_appointment(
+		&self,
+		location_id: &str,
+	) -> reqwest::Result<HashMap<String, String>> {
+		let result = self
+			.get_request(&self.build_endpoint(DmvEndpoints::GetNextAvailableDate, location_id))
+			.await;
+		result
 	}
-
+	pub async fn check_available_appointments(&self) {}
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+	use super::*;
 
+	#[test]
+	fn make_a_new_client() {
+		Client::new();
+	}
 
+	#[test]
+	fn it_builds_next_available_appointment_endpoint() {
+		let comparison_endpoint = "https://telegov.njportal.com/njmvc/CustomerCreateAppointments/GetNextAvailableDate?appointmentTypeId=15&locationId=197";
+		let client = Client::new();
+		assert_eq!(
+			comparison_endpoint,
+			client.build_endpoint(DmvEndpoints::GetNextAvailableDate, "197")
+		)
+	}
+
+	#[tokio::test]
+	async fn it_fires_off_get_request() {
+		let client = Client::new();
+		let result = client.get_next_available_appointment("197").await.unwrap();
+	}
 }

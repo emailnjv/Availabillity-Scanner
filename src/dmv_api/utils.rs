@@ -1,9 +1,9 @@
-use super::structs::{LocationMap, Location};
+use super::structs::{Location, LocationMap};
 use std::fs::File;
 use std::io::Read;
 
 pub struct Utils {
-	location_mapping: LocationMap
+	location_mapping: LocationMap,
 }
 
 impl Utils {
@@ -11,10 +11,10 @@ impl Utils {
 		let mut file = File::open("licensingLocations.json").unwrap();
 		let mut data = String::new();
 		file.read_to_string(&mut data).unwrap();
-		let mut mapping: LocationMap = serde_json::from_str(data.as_str()).unwrap();
+		let mapping: LocationMap = serde_json::from_str(data.as_str()).unwrap();
 
 		Utils {
-			location_mapping: mapping
+			location_mapping: mapping,
 		}
 	}
 	pub fn get_location_from_id(&self, id: &str) -> &Location {
@@ -24,8 +24,8 @@ impl Utils {
 
 #[cfg(test)]
 mod tests {
-	use crate::utils::Utils;
 	use crate::structs::Location;
+	use crate::utils::Utils;
 
 	#[test]
 	fn it_creates_a_utils_struct() {
@@ -36,12 +36,15 @@ mod tests {
 	fn it_returns_the_correct_location() {
 		let utils = Utils::new();
 		let freehold_location = Location {
-			location_id: 197,
+			location_id: String::from("197"),
 			location_title: String::from("Freehold"),
 			location_street: String::from("811 Okerson Road"),
 			location_town: String::from("Freehold"),
-			location_zip: String::from("07728")
+			location_zip: String::from("07728"),
 		};
-		assert_eq!(utils.get_location_from_id(&freehold_location.location_id.to_string()), &freehold_location)
+		assert_eq!(
+			utils.get_location_from_id(&freehold_location.location_id.to_string()),
+			&freehold_location
+		)
 	}
 }
