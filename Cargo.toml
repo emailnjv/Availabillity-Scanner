@@ -1,0 +1,21 @@
+[package]
+name = "dmv_scheduler"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "dmv_api"
+path = "src/dmv_api/lib.rs"
+
+[[bin]]
+name = "dmv_scheduler"
+path = "src/bin.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.125", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1", features = ["full"] }
+
