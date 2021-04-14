@@ -20,6 +20,9 @@ impl Utils {
 	pub fn get_location_from_id(&self, id: &str) -> &Location {
 		&self.location_mapping[id]
 	}
+	pub fn get_location_mapping(&self) -> &LocationMap {
+		&self.location_mapping
+	}
 }
 
 #[cfg(test)]
@@ -30,6 +33,12 @@ mod tests {
 	#[test]
 	fn it_creates_a_utils_struct() {
 		Utils::new();
+	}
+
+	#[test]
+	fn it_returns_the_location_mapping() {
+		let utils = Utils::new();
+		assert_eq!(&utils.location_mapping, utils.get_location_mapping())
 	}
 
 	#[test]

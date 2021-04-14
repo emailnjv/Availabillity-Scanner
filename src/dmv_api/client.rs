@@ -5,7 +5,7 @@ use std::collections::HashMap;
 // TODO: Add traits & impl. to enums to allow for a standardized function that returns the necessary query pairs
 enum DmvEndpoints {
 	GetNextAvailableDate,
-	NavigateToDateTime,
+	AppointmentWizzard,
 }
 
 struct Client {
@@ -21,7 +21,7 @@ impl Client {
 
 	#[inline]
 	pub fn url(&self) -> &'static str {
-		"https://telegov.njportal.com/njmvc/CustomerCreateAppointments/"
+		"https://telegov.njportal.com/njmvc/"
 	}
 	async fn get_request(&self, endpoint: &str) -> reqwest::Result<HashMap<String, String>> {
 		let resp = reqwest::get(endpoint)
@@ -31,12 +31,11 @@ impl Client {
 		resp
 	}
 	fn build_endpoint(&self, endpoint: DmvEndpoints, location_id: &str) -> String {
-		// TODO: handle next endpoint given it's not a standard endpoint
 		match endpoint {
 			DmvEndpoints::GetNextAvailableDate => {
 				let mut result = Url::parse(self.url())
 					.unwrap()
-					.join("GetNextAvailableDate")
+					.join("CustomerCreateAppointments/GetNextAvailableDate")
 					.unwrap();
 				result
 					.query_pairs_mut()
@@ -44,6 +43,14 @@ impl Client {
 					.append_pair("locationId", location_id);
 				result.as_str().to_string()
 			}
+			DmvEndpoints::AppointmentWizzard => Url::parse(self.url())
+				.unwrap()
+				.join("AppointmentWizard/15/")
+				.unwrap()
+				.join(location_id)
+				.unwrap()
+				.as_str()
+				.to_string(),
 			_ => self.url().to_string(),
 		}
 	}
@@ -56,7 +63,9 @@ impl Client {
 			.await;
 		result
 	}
-	pub async fn check_available_appointments(&self) {}
+	async fn check_available_appointments(&self) {
+		self.utils.get_location_mapping();
+	}
 }
 
 #[cfg(test)]
