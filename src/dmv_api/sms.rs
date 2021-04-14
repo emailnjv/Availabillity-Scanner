@@ -8,6 +8,7 @@ use twrs_sms;
 
 use crate::structs::Location;
 use reqwest::StatusCode;
+use std::fmt::Error;
 use twrs_sms::TwilioSend;
 
 struct SMS {
@@ -33,10 +34,11 @@ impl<'a> SMS {
 	fn create_message_body(&self, location_title: &str, appointment_url: &str) -> String {
 		format!(
 			r"Appointment Available!
-		Location: {}
-		Schedule your appointment at this url: {}
+Location: {}
 
-		Reply STOP to unsubscribe",
+Schedule your appointment at this url: {}
+
+Reply STOP to unsubscribe",
 			location_title, appointment_url
 		)
 	}
@@ -51,6 +53,33 @@ impl<'a> SMS {
 			})
 		}
 		result
+	}
+	async fn send_messages<'b>(&self, twilio_sends: Vec<TwilioSend<'b>>) -> Result<(), Error> {
+		let tw_sid = var("TW_SID").unwrap();
+		let tw_token = var("TW_TOKEN").unwrap();
+
+		for message in twilio_sends {
+			let encoded_msg = message
+				.encode()
+				.expect("Error converting to url encoded string");
+			let response = twrs_sms::send_message(&tw_sid, &tw_token, encoded_msg)
+				.await
+				.expect("Error with HTTP request");
+			// Run the loop to make sure the message was delivered
+			twrs_sms::is_delivered(response, &tw_sid, &tw_token)
+				.await
+				.expect("Error SMS not delivered");
+		}
+		Ok(())
+	}
+	pub async fn alert_receipients(
+		&self,
+		location: &Location,
+		appointment_url: &str,
+	) -> Result<(), Error> {
+		let msg_body = self.create_message_body(&location.location_title, appointment_url);
+		let twilio_sends = self.create_messages(&msg_body);
+		self.send_messages(twilio_sends).await
 	}
 }
 
@@ -96,5 +125,26 @@ mod tests {
 		assert_eq!("1_8488888888", result[0].To);
 		assert_eq!("1_8489999999", result[1].To);
 		assert_eq!("1_8480000000", result[2].To);
+	}
+
+	#[tokio::test]
+	#[ignore]
+	async fn test_full() {
+		// Be sure to have the follow environment variables set before running this ignored test
+		// export TW_TO="COUNTRYCODE_PHONENUMBER,COUNTRYCODE_PHONENUMBER"
+		// export TW_FROM="COUNTRYCODE_PHONENUMBER"
+		// export TW_SID="ACCOUNT_SID"
+		// export TW_TOKEN="ACCOUNT_TOKEN"
+
+		let sms_client = SMS::new();
+		let utils = Utils::new();
+		let test_location = utils.get_location_from_id("197");
+		let apt_url = String::from("https://telegov.njportal.com/njmvc/AppointmentWizard/15/")
+			+ &test_location.location_id;
+
+		sms_client
+			.alert_receipients(test_location, &apt_url)
+			.await
+			.unwrap()
 	}
 }
