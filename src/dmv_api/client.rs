@@ -1,31 +1,47 @@
+use super::sms::SMS;
 use super::utils::Utils;
+use crate::structs::SchedulerError;
 use reqwest::Url;
 use std::collections::HashMap;
-use super::sms::SMS;
-use std::fmt::Error;
-use crate::structs::SchedulerError;
+
+use tokio::time::{sleep, Duration};
 
 // TODO: Add traits & impl. to enums to allow for a standardized function that returns the necessary query pairs
+// TODO: Error consolidation & lifetime alignment
 enum DmvEndpoints {
 	GetNextAvailableDate,
 	AppointmentWizzard,
 }
 
-struct Client {
+pub struct Client {
 	utils: Utils,
-	sms: SMS
+	sms: SMS,
 }
 
 impl Client {
 	pub fn new() -> Self {
 		Client {
 			utils: Utils::new(),
-			sms: SMS::new()
+			sms: SMS::new(),
+		}
+	}
+	pub async fn run(&self) {
+		let mut appointment_found: bool = false;
+		let mut iteration_counter: i64 = 0;
+		while !appointment_found {
+			appointment_found = match self.check_available_appointments().await {
+				Ok(appointment_found) => appointment_found,
+				Err(e) => std::panic::panic_any(e),
+			};
+			println!("Iteration #{:} finished", iteration_counter);
+			iteration_counter += 1;
+			// sleep(Duration::from_secs(3)).await;
+			sleep(Duration::from_secs(300)).await;
 		}
 	}
 
 	#[inline]
-	pub fn url(&self) -> &'static str {
+	fn url(&self) -> &'static str {
 		"https://telegov.njportal.com/njmvc/"
 	}
 	async fn get_request(&self, endpoint: &str) -> reqwest::Result<HashMap<String, String>> {
@@ -56,7 +72,6 @@ impl Client {
 				.unwrap()
 				.as_str()
 				.to_string(),
-			_ => self.url().to_string(),
 		}
 	}
 	async fn get_next_available_appointment(
@@ -68,15 +83,18 @@ impl Client {
 			.await;
 		result
 	}
-	async fn check_appointment_response(&self, response_result: reqwest::Result<HashMap<String, String>>) -> Result<bool, reqwest::Error> {
+	async fn check_appointment_response(
+		&self,
+		response_result: reqwest::Result<HashMap<String, String>>,
+	) -> Result<bool, reqwest::Error> {
 		match response_result {
 			Ok(response) => {
 				if response.contains_key("next") && response["next"] != "No Appointments Available" {
-					return Ok(true)
+					return Ok(true);
 				}
 				Ok(false)
 			}
-			Err(e) => Err(e)
+			Err(e) => Err(e),
 		}
 	}
 	async fn check_available_appointments(&self) -> Result<bool, SchedulerError> {
@@ -86,16 +104,21 @@ impl Client {
 			match self.check_appointment_response(response_result).await {
 				Ok(appointment_available) => {
 					if appointment_available {
-						self.sms.alert_receipients(self.utils.get_location_from_id(&location_id), &self.build_endpoint(DmvEndpoints::AppointmentWizzard, &location_id)).await?
-						Ok(true)
+						self
+							.sms
+							.alert_receipients(
+								self.utils.get_location_from_id(&location_id),
+								&self.build_endpoint(DmvEndpoints::AppointmentWizzard, &location_id),
+							)
+							.await?;
+						return Ok(true);
 					}
 				}
-				Err(e) => return Err(SchedulerError::SmsError(e))
+				Err(e) => return Err(SchedulerError::SmsError(e)),
 			}
 		}
 		Ok(false)
 	}
-
 }
 
 #[cfg(test)]
@@ -126,9 +149,25 @@ mod tests {
 
 	#[tokio::test]
 	async fn it_checks_the_response() {
+		let mut test_result: HashMap<String, String> = HashMap::new();
+		test_result.insert(String::from("next"), String::from("Something Different"));
+
 		let client = Client::new();
 		let response = client.get_next_available_appointment("197").await;
-		let result = client.check_appointment_response(response).await;
-		print!("{}", result)
+		let actual_result = client.check_appointment_response(response).await.unwrap();
+		let false_positive_result = client
+			.check_appointment_response(Ok(test_result))
+			.await
+			.unwrap();
+		assert_eq!(false, actual_result);
+		assert_eq!(true, false_positive_result)
+	}
+
+	#[tokio::test]
+	#[ignore]
+	async fn it_checks_all_locations() {
+		let client = Client::new();
+		let result = client.check_available_appointments().await.unwrap();
+		assert_eq!(false, result)
 	}
 }

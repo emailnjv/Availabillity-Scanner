@@ -2,8 +2,6 @@ use super::structs::{Location, LocationMap};
 use std::fs::File;
 use std::io::Read;
 
-// TODO: Error consolidation & lifetime alignment
-
 pub struct Utils {
 	location_mapping: LocationMap,
 }
@@ -22,9 +20,6 @@ impl Utils {
 	pub fn get_location_from_id(&self, id: &str) -> &Location {
 		&self.location_mapping[id]
 	}
-	pub fn get_location_mapping(&self) -> &LocationMap {
-		&self.location_mapping
-	}
 	pub fn get_location_id_collection(&self) -> Vec<String> {
 		let mut result = Vec::new();
 		for location_id in &self.location_mapping {
@@ -42,12 +37,6 @@ mod tests {
 	#[test]
 	fn it_creates_a_utils_struct() {
 		Utils::new();
-	}
-
-	#[test]
-	fn it_returns_the_location_mapping() {
-		let utils = Utils::new();
-		assert_eq!(&utils.location_mapping, utils.get_location_mapping())
 	}
 
 	#[test]

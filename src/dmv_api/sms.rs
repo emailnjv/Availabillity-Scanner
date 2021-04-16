@@ -4,11 +4,9 @@
 // export TW_SID="ACCOUNT_SID"
 // export TW_TOKEN="ACCOUNT_TOKEN"
 use std::env::var;
-use twrs_sms;
 
 use crate::structs::{Location, SchedulerError};
-use reqwest::StatusCode;
-use std::fmt::Error;
+
 use twrs_sms::TwilioSend;
 
 pub struct SMS {
@@ -23,7 +21,7 @@ impl<'a> SMS {
 		SMS {
 			target_numbers: var("TW_TO")
 				.unwrap()
-				.split(",")
+				.split(',')
 				.map(|number| number.to_owned())
 				.collect(),
 			source_number: var("TW_FROM").unwrap(),
@@ -54,7 +52,10 @@ Reply STOP to unsubscribe",
 		}
 		result
 	}
-	async fn send_messages<'b>(&self, twilio_sends: Vec<TwilioSend<'b>>) -> Result<(), SchedulerError> {
+	async fn send_messages<'b>(
+		&self,
+		twilio_sends: Vec<TwilioSend<'b>>,
+	) -> Result<(), SchedulerError> {
 		for message in twilio_sends {
 			let encoded_msg = message
 				.encode()

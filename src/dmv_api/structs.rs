@@ -1,22 +1,20 @@
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::fmt;
 use std::error::Error;
+use std::fmt;
 
+#[derive(Debug)]
 pub enum SchedulerError {
-	ClientError(reqwest::Error),
 	SmsError(reqwest::Error),
 }
 impl fmt::Display for SchedulerError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match self {
-			SchedulerError::ClientError(e) => write!(f, "Client reqwest error: {}", e),
-			SchedulerError::SmsError(e) => write!(f, "Sms reqwest error: {}", e)
+			SchedulerError::SmsError(e) => write!(f, "Sms reqwest error: {}", e),
 		}
 	}
 }
 impl Error for SchedulerError {}
-
 
 #[derive(Default, Debug, Clone, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
