@@ -6,12 +6,12 @@
 use std::env::var;
 use twrs_sms;
 
-use crate::structs::Location;
+use crate::structs::{Location, SchedulerError};
 use reqwest::StatusCode;
 use std::fmt::Error;
 use twrs_sms::TwilioSend;
 
-struct SMS {
+pub struct SMS {
 	target_numbers: Vec<String>,
 	source_number: String,
 	account_sid: String,
@@ -54,19 +54,16 @@ Reply STOP to unsubscribe",
 		}
 		result
 	}
-	async fn send_messages<'b>(&self, twilio_sends: Vec<TwilioSend<'b>>) -> Result<(), Error> {
-		let tw_sid = var("TW_SID").unwrap();
-		let tw_token = var("TW_TOKEN").unwrap();
-
+	async fn send_messages<'b>(&self, twilio_sends: Vec<TwilioSend<'b>>) -> Result<(), SchedulerError> {
 		for message in twilio_sends {
 			let encoded_msg = message
 				.encode()
 				.expect("Error converting to url encoded string");
-			let response = twrs_sms::send_message(&tw_sid, &tw_token, encoded_msg)
+			let response = twrs_sms::send_message(&self.account_sid, &self.account_token, encoded_msg)
 				.await
 				.expect("Error with HTTP request");
 			// Run the loop to make sure the message was delivered
-			twrs_sms::is_delivered(response, &tw_sid, &tw_token)
+			twrs_sms::is_delivered(response, &self.account_sid, &self.account_token)
 				.await
 				.expect("Error SMS not delivered");
 		}
@@ -76,7 +73,7 @@ Reply STOP to unsubscribe",
 		&self,
 		location: &Location,
 		appointment_url: &str,
-	) -> Result<(), Error> {
+	) -> Result<(), SchedulerError> {
 		let msg_body = self.create_message_body(&location.location_title, appointment_url);
 		let twilio_sends = self.create_messages(&msg_body);
 		self.send_messages(twilio_sends).await
