@@ -19,4 +19,6 @@ serde_json = "1.0"
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 twrs-sms = { git = "https://github.com/emailnjv/twrs-sms.git", branch = "async" }
-
+log = "0.4.14"
+fern = { version = "0.6.0", features = ["colored"] }
+chrono = "0.4.19"

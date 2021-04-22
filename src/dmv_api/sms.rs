@@ -1,14 +1,10 @@
-// Be sure to have the follow environment variables set before running this ignored test
-// export TW_TO="COUNTRYCODE_PHONENUMBER"
-// export TW_FROM="COUNTRYCODE_PHONENUMBER"
-// export TW_SID="ACCOUNT_SID"
-// export TW_TOKEN="ACCOUNT_TOKEN"
 use std::env::var;
 
 use crate::structs::{Location, SchedulerError};
 
 use twrs_sms::TwilioSend;
 
+/// The struct containing the data & implementations for interacting with the TwilioAPI
 pub struct SMS {
 	target_numbers: Vec<String>,
 	source_number: String,
@@ -17,6 +13,13 @@ pub struct SMS {
 }
 
 impl<'a> SMS {
+	/// Returns SMS API struct
+	///
+	/// Implementation of this struct requires the following ENV variables to be set:
+	///  - TW_TO="COUNTRYCODE_PHONENUMBER,COUNTRYCODE_PHONENUMBER,..."
+	///  - TW_FROM="COUNTRYCODE_PHONENUMBER"
+	///  - TW_SID="ACCOUNT_SID"
+	///  - TW_TOKEN="ACCOUNT_TOKEN"
 	pub fn new() -> Self {
 		SMS {
 			target_numbers: var("TW_TO")
@@ -29,6 +32,10 @@ impl<'a> SMS {
 			account_token: var("TW_TOKEN").unwrap(),
 		}
 	}
+
+	/// Takes in the information that's needed to create a message to send to the end recipient, returning the String msg.
+	///
+	/// Currently takes in the location title & the URL to schedule the appointment, formatting it into a String including various line breaks.
 	fn create_message_body(&self, location_title: &str, appointment_url: &str) -> String {
 		format!(
 			r"Appointment Available!
@@ -40,6 +47,10 @@ Reply STOP to unsubscribe",
 			location_title, appointment_url
 		)
 	}
+
+	/// Takes in the resulting message & returns a vector of ind. TwilioSend structs to be sent
+	///
+	/// This function iterates over the self.target_numbers property to determine how many send structs are needed.
 	fn create_messages(&'a self, message_body: &'a str) -> Vec<TwilioSend> {
 		// let message_body = self.create_message_body(&location.location_title, appointment_url);
 		let mut result = Vec::new();
@@ -52,6 +63,9 @@ Reply STOP to unsubscribe",
 		}
 		result
 	}
+
+	// TODO: sort out lifetimes
+	/// Iterates over the vector of TwilioSend structs sending them to Twilio
 	async fn send_messages<'b>(
 		&self,
 		twilio_sends: Vec<TwilioSend<'b>>,
@@ -70,6 +84,8 @@ Reply STOP to unsubscribe",
 		}
 		Ok(())
 	}
+
+	/// This is the main exposed function of the struct allowing the main client to fire off the messages when an appointment is found.
 	pub async fn alert_receipients(
 		&self,
 		location: &Location,

@@ -8,9 +8,10 @@ use tokio::time::{sleep, Duration};
 
 // TODO: Add traits & impl. to enums to allow for a standardized function that returns the necessary query pairs
 // TODO: Error consolidation & lifetime alignment
+// TODO: Consolidate/standardize timer initialization
 enum DmvEndpoints {
 	GetNextAvailableDate,
-	AppointmentWizzard,
+	AppointmentWizard,
 }
 
 pub struct Client {
@@ -36,7 +37,7 @@ impl Client {
 			println!("Iteration #{:} finished", iteration_counter);
 			iteration_counter += 1;
 			// sleep(Duration::from_secs(3)).await;
-			sleep(Duration::from_secs(300)).await;
+			// sleep(Duration::from_secs(300)).await;
 		}
 	}
 
@@ -64,7 +65,7 @@ impl Client {
 					.append_pair("locationId", location_id);
 				result.as_str().to_string()
 			}
-			DmvEndpoints::AppointmentWizzard => Url::parse(self.url())
+			DmvEndpoints::AppointmentWizard => Url::parse(self.url())
 				.unwrap()
 				.join("AppointmentWizard/15/")
 				.unwrap()
@@ -78,8 +79,9 @@ impl Client {
 		&self,
 		location_id: &str,
 	) -> reqwest::Result<HashMap<String, String>> {
+		let endpoint = self.build_endpoint(DmvEndpoints::GetNextAvailableDate, location_id);
 		let result = self
-			.get_request(&self.build_endpoint(DmvEndpoints::GetNextAvailableDate, location_id))
+			.get_request(&endpoint)
 			.await;
 		result
 	}
@@ -90,6 +92,7 @@ impl Client {
 		match response_result {
 			Ok(response) => {
 				if response.contains_key("next") && response["next"] != "No Appointments Available" {
+					println!("{:?}", response);
 					return Ok(true);
 				}
 				Ok(false)
@@ -100,6 +103,7 @@ impl Client {
 	async fn check_available_appointments(&self) -> Result<bool, SchedulerError> {
 		let locations = self.utils.get_location_id_collection();
 		for location_id in locations {
+			sleep(Duration::from_secs(2)).await;
 			let response_result = self.get_next_available_appointment(&location_id).await;
 			match self.check_appointment_response(response_result).await {
 				Ok(appointment_available) => {
@@ -108,7 +112,7 @@ impl Client {
 							.sms
 							.alert_receipients(
 								self.utils.get_location_from_id(&location_id),
-								&self.build_endpoint(DmvEndpoints::AppointmentWizzard, &location_id),
+								&self.build_endpoint(DmvEndpoints::AppointmentWizard, &location_id),
 							)
 							.await?;
 						return Ok(true);
